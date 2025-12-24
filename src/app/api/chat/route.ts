@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { ChatRequest, ChatResponse } from '@/types/api';
+import type { ChatRequest, ChatResponse, ChatHistoryResponse } from '@/types/api';
 
 // POST /api/chat
 // Processes a chat message and returns AI response with sources
@@ -39,6 +39,54 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error processing chat:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// GET /api/chat
+// Gets chat history for a conversation
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new globalThis.URL(request.url);
+    const conversationId = searchParams.get('conversation_id');
+
+    if (!conversationId) {
+      return NextResponse.json(
+        { error: 'Missing required query parameter: conversation_id' },
+        { status: 400 }
+      );
+    }
+
+    // TODO: Implement chat history retrieval logic
+    // 1. Validate conversation exists
+    // 2. Query messages for the conversation
+    // 3. Return formatted message history
+
+    // Placeholder response - replace with actual implementation
+    const response: ChatHistoryResponse = {
+      messages: [
+        {
+          id: 'msg_placeholder_1',
+          role: 'user',
+          content: 'Hello, can you help me with this document?',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'msg_placeholder_2',
+          role: 'assistant',
+          content: 'Of course! I\'d be happy to help you analyze your document.',
+          created_at: new Date().toISOString()
+        }
+      ]
+    };
+
+    return NextResponse.json(response, { status: 200 });
+
+  } catch (error) {
+    console.error('Error getting chat history:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

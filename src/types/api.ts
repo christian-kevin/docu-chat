@@ -28,4 +28,47 @@ export interface CreateConversationResponse {
   conversation_id: string;
 }
 
-export interface DeleteConversationResponse {}
+export interface DeleteConversationResponse {
+  status: 'deleted';
+}
+
+export interface DocumentListItem {
+  id: string;
+  filename: string;
+  file_type: 'pdf' | 'csv';
+  status: 'processing' | 'ready' | 'failed';
+  created_at: string;
+}
+
+export interface DocumentListResponse {
+  documents: DocumentListItem[];
+}
+
+export interface DocumentMetadataResponse {
+  id: string;
+  conversation_id: string;
+  filename: string;
+  file_type: 'pdf' | 'csv';
+  status: 'processing' | 'ready' | 'failed';
+  created_at: string;
+}
+
+export interface ChatHistoryMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  created_at: string;
+}
+
+export interface ChatHistoryResponse {
+  messages: ChatHistoryMessage[];
+}
+
+export interface ConversationListItem {
+  id: string;
+  created_at: string;
+}
+
+export interface ConversationListResponse {
+  conversations: ConversationListItem[];
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { UploadDocumentResponse } from '@/types/api';
+import type { UploadDocumentResponse, DocumentListResponse } from '@/types/api';
 
 // POST /api/documents
 // Uploads a document and creates document record
@@ -53,6 +53,49 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error uploading document:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// GET /api/documents
+// Lists documents for a conversation
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new globalThis.URL(request.url);
+    const conversationId = searchParams.get('conversation_id');
+
+    if (!conversationId) {
+      return NextResponse.json(
+        { error: 'Missing required query parameter: conversation_id' },
+        { status: 400 }
+      );
+    }
+
+    // TODO: Implement document listing logic
+    // 1. Validate conversation exists
+    // 2. Query documents for the conversation
+    // 3. Return formatted document list
+
+    // Placeholder response - replace with actual implementation
+    const response: DocumentListResponse = {
+      documents: [
+        {
+          id: 'doc_placeholder_1',
+          filename: 'sample.pdf',
+          file_type: 'pdf',
+          status: 'ready',
+          created_at: new Date().toISOString()
+        }
+      ]
+    };
+
+    return NextResponse.json(response, { status: 200 });
+
+  } catch (error) {
+    console.error('Error listing documents:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

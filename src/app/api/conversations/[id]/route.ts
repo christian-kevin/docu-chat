@@ -19,14 +19,12 @@ export async function DELETE(
 
     // TODO: Implement conversation deletion logic
     // 1. Validate conversation exists
-    // 2. Delete all associated messages
-    // 3. Delete all associated document chunks
-    // 4. Delete all associated documents
-    // 5. Delete conversation record
-    // 6. Clean up any stored files
-
+	// 2. Mark converstaion deleted
+    
     // Placeholder response - replace with actual implementation
-    const response: DeleteConversationResponse = {};
+    const response: DeleteConversationResponse = {
+      status: 'deleted'
+    };
 
     return NextResponse.json(response, { status: 200 });
 
