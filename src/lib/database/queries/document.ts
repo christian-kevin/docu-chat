@@ -88,13 +88,19 @@ export async function markDocumentFailed(
     return;
   }
 
-  const { createMessage } = await import('./message');
-  const document = data[0];
-  await createMessage({
-    conversation_id: document.conversation_id,
-    role: 'system',
-    content: `Document "${document.filename}" processing failed: ${errorReason}`,
-  });
+  // Create system message for document failed
+  try {
+    const { createMessage } = await import('./message');
+    const document = data[0];
+    await createMessage({
+      conversation_id: document.conversation_id,
+      role: 'system',
+      content: `Document "${document.filename}" processing failed: ${errorReason}`,
+    });
+  } catch (error) {
+    console.error(`Failed to create failed message for document ${documentId}:`, error);
+    // Don't throw - message creation failure shouldn't fail the document failed update
+  }
 }
 
 /**
@@ -147,12 +153,17 @@ export async function markDocumentReady(documentId: string): Promise<void> {
   }
 
   // Create system message for document ready
-  const { createMessage } = await import('./message');
-  await createMessage({
-    conversation_id: data.conversation_id,
-    role: 'system',
-    content: `Document "${data.filename}" processing completed and is ready.`,
-  });
+  try {
+    const { createMessage } = await import('./message');
+    await createMessage({
+      conversation_id: data.conversation_id,
+      role: 'system',
+      content: `Document "${data.filename}" processing completed and is ready.`,
+    });
+  } catch (error) {
+    console.error(`Failed to create ready message for document ${documentId}:`, error);
+    // Don't throw - message creation failure shouldn't fail the document ready update
+  }
 }
 
 /**

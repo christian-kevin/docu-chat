@@ -18,6 +18,7 @@ export function ChatInterface() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [uploadedDocuments, setUploadedDocuments] = useState<Map<string, string>>(new Map());
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -28,31 +29,35 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  const fetchMessages = async () => {
+    if (!conversationId) {
+      setMessages([]);
+      setIsLoadingMessages(false);
+      return;
+    }
+
+    setIsLoadingMessages(true);
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch messages');
+      }
+      const data = await response.json();
+      const fetchedMessages: Message[] = data.messages.map((msg: any) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date(msg.created_at),
+      }));
+      setMessages(fetchedMessages);
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (!conversationId) {
-        setMessages([]);
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/conversations/${conversationId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch messages');
-        }
-        const data = await response.json();
-        const fetchedMessages: Message[] = data.messages.map((msg: any) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.created_at),
-        }));
-        setMessages(fetchedMessages);
-      } catch (error) {
-        console.error('Failed to fetch messages:', error);
-      }
-    };
-
     fetchMessages();
   }, [conversationId]);
 
@@ -80,9 +85,12 @@ export function ChatInterface() {
   };
 
   const handleSelectConversation = (id: string) => {
-    setConversationId(id);
-    setMessages([]);
-    setUploadedDocuments(new Map());
+    // Only update if it's a different conversation
+    if (conversationId !== id) {
+      setConversationId(id);
+      setMessages([]);
+      setUploadedDocuments(new Map());
+    }
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -232,6 +240,8 @@ export function ChatInterface() {
                 messages={messages}
                 uploadedDocuments={uploadedDocuments}
                 conversationId={conversationId}
+                onDocumentStatusChange={fetchMessages}
+                isLoading={isLoadingMessages}
               />
               <div ref={messagesEndRef} />
             </div>

@@ -1,16 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDocumentPolling } from '@/hooks/useDocumentPolling';
 
 interface DocumentStatusProps {
   documentId: string;
   filename: string;
+  onStatusChange?: (status: 'uploading' | 'processing' | 'ready' | 'failed') => void;
 }
 
-export function DocumentStatus({ documentId, filename }: DocumentStatusProps) {
+export function DocumentStatus({ documentId, filename, onStatusChange }: DocumentStatusProps) {
   const { status, isLoading } = useDocumentPolling(documentId);
   const [isMarkingFailed, setIsMarkingFailed] = useState(false);
+  const [prevStatus, setPrevStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status && status !== prevStatus) {
+      setPrevStatus(status);
+      if (onStatusChange && (status === 'ready' || status === 'failed')) {
+        onStatusChange(status);
+      }
+    }
+  }, [status, prevStatus, onStatusChange]);
 
   const handleForceFail = async () => {
     if (!confirm('Are you sure you want to mark this document as failed?')) {
