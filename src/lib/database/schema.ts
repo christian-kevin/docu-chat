@@ -8,7 +8,11 @@ export interface Document {
   conversation_id: string
   filename: string
   file_type: 'pdf' | 'csv'
-  status: 'processing' | 'completed' | 'failed'
+  status: 'uploading' | 'processing' | 'ready' | 'failed'
+  storage_path: string | null
+  processing_started_at: string | null
+  processing_attempts: number
+  error_reason: string | null
   created_at: string
 }
 

@@ -2,11 +2,9 @@ import { getSupabaseAdmin } from '@/lib/database/client';
 import type { Document } from '@/lib/database/schema';
 
 export interface InsertDocumentParams {
-  id: string;
   conversation_id: string;
   filename: string;
   file_type: 'pdf' | 'csv';
-  status: 'processing' | 'completed' | 'failed';
 }
 
 /**
@@ -19,12 +17,13 @@ export async function insertDocument(params: InsertDocumentParams): Promise<void
   const { error } = await getSupabaseAdmin()
     .from('documents')
     .insert({
-      id: params.id,
       conversation_id: params.conversation_id,
       filename: params.filename,
       file_type: params.file_type,
-      status: params.status,
-    });
+      status: 'uploading',
+    })
+    .select('id')
+    .single();
 
   if (error) {
     throw new Error(`Failed to create document record: ${error.message}`);

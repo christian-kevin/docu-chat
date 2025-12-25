@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         id: doc.id,
         filename: doc.filename,
         file_type: doc.file_type,
-        status: doc.status === 'processing' ? 'processing' : doc.status === 'completed' ? 'ready' : 'failed',
+        status: doc.status === 'processing' ? 'processing' : doc.status === 'ready' ? 'ready' : doc.status === 'uploading' ? 'uploading' : 'failed',
         created_at: doc.created_at,
       })),
     };

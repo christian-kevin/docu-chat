@@ -1,7 +1,8 @@
-import { randomUUID } from 'crypto';
-import { saveTempFile } from '@/utils/temp-storage';
+import { saveDocumentFile } from '@/utils/storage';
 import {
   insertDocument,
+  updateDocumentAfterUpload,
+  markDocumentFailed,
   selectDocumentsByConversation,
   selectDocumentById,
 } from '@/lib/database/queries/document';
@@ -14,38 +15,51 @@ export interface CreateDocumentParams {
 
 export interface CreateDocumentResult {
   documentId: string;
-  status: 'processing' | 'completed' | 'failed';
+  status: 'uploading' | 'processing' | 'ready' | 'failed';
 }
 
 /**
- * Creates a new document record in the database and uploads file to temporary storage.
- * Generates a unique document ID and sets initial status to 'processing'.
+ * Creates a new document using DB-first pattern (reliable ingestion).
+ * Step 1: Insert DB row with status 'uploading'
+ * Step 2: Upload file to storage (deterministic path)
+ * Step 3: Update DB row to 'processing' with storage_path
  * 
  * @param params - File and conversation ID
  * @returns Document ID and initial status
- * @throws Error if database insert or storage upload fails
+ * @throws Error if any step fails
  */
 export async function createDocument(params: CreateDocumentParams): Promise<CreateDocumentResult> {
   const { file, conversationId } = params;
 
-  const documentId = randomUUID();
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
   const fileType = file.type.includes('pdf') ? 'pdf' : 'csv';
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-  await saveTempFile(fileBuffer, file.name);
-
-  await insertDocument({
-    id: documentId,
+  const documentId = await insertDocument({
     conversation_id: conversationId,
     filename: file.name,
     file_type: fileType,
-    status: 'processing',
   });
 
-  return {
-    documentId,
-    status: 'processing',
-  };
+  try {
+    const storagePath = await saveDocumentFile(
+      fileBuffer,
+      conversationId,
+      documentId,
+      file.name
+    );
+
+    await updateDocumentAfterUpload(documentId, storagePath);
+
+    return {
+      documentId,
+      status: 'processing',
+    };
+  } catch (error) {
+    // If upload fails, mark document as failed
+    const errorMessage = error instanceof Error ? error.message : 'UPLOAD_FAILED';
+    await markDocumentFailed(documentId, errorMessage);
+    throw error;
+  }
 }
 
 /**

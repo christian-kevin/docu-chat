@@ -32,7 +32,7 @@ export async function GET(
       conversation_id: document.conversation_id,
       filename: document.filename,
       file_type: document.file_type,
-      status: document.status === 'processing' ? 'processing' : document.status === 'completed' ? 'ready' : 'failed',
+      status: document.status === 'processing' ? 'processing' : document.status === 'ready' ? 'ready' : document.status === 'uploading' ? 'uploading' : 'failed',
       created_at: document.created_at,
     };
 
