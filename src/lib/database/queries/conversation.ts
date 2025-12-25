@@ -33,6 +33,24 @@ export async function getConversations(): Promise<Conversation[]> {
   return (data || []) as Conversation[];
 }
 
+export async function getConversationById(conversationId: string): Promise<Conversation | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from('conversations')
+    .select('*')
+    .eq('id', conversationId)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    throw new Error(`Failed to fetch conversation: ${error.message}`);
+  }
+
+  return data as Conversation | null;
+}
+
 export async function softDeleteConversation(conversationId: string): Promise<void> {
   const { data, error } = await getSupabaseAdmin()
     .from('conversations')

@@ -6,6 +6,7 @@ import {
   selectDocumentsByConversation,
   selectDocumentById,
 } from '@/lib/database/queries/document';
+import { createMessage } from '@/lib/database/queries/message';
 import type { Document } from '@/lib/database/schema';
 
 export interface CreateDocumentParams {
@@ -31,6 +32,11 @@ export interface CreateDocumentResult {
 export async function createDocument(params: CreateDocumentParams): Promise<CreateDocumentResult> {
   const { file, conversationId } = params;
 
+  const existingDocuments = await selectDocumentsByConversation(conversationId);
+  if (existingDocuments.length > 0) {
+    throw new Error('Conversation already has a document. Only one document per conversation is allowed.');
+  }
+
   const fileType = file.type.includes('pdf') ? 'pdf' : 'csv';
   const fileBuffer = Buffer.from(await file.arrayBuffer());
 
@@ -49,6 +55,12 @@ export async function createDocument(params: CreateDocumentParams): Promise<Crea
     );
 
     await updateDocumentAfterUpload(documentId, storagePath);
+
+    await createMessage({
+      conversation_id: conversationId,
+      role: 'system',
+      content: `Document "${file.name}" uploaded and processing started.`,
+    });
 
     return {
       documentId,

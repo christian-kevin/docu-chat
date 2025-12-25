@@ -7,7 +7,7 @@ import { ConversationList } from './ConversationList';
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
   documentId?: string;
@@ -27,6 +27,34 @@ export function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!conversationId) {
+        setMessages([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/conversations/${conversationId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch messages');
+        }
+        const data = await response.json();
+        const fetchedMessages: Message[] = data.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+        }));
+        setMessages(fetchedMessages);
+      } catch (error) {
+        console.error('Failed to fetch messages:', error);
+      }
+    };
+
+    fetchMessages();
+  }, [conversationId]);
 
   const handleStartChat = async () => {
     if (isCreatingConversation) return;
@@ -88,15 +116,18 @@ export function ChatInterface() {
 
       setUploadedDocuments((prev) => new Map(prev).set(documentId, file.name));
 
-      const userMessage: Message = {
-        id: `msg-${Date.now()}`,
-        role: 'user',
-        content: `I've uploaded ${file.name}`,
-        timestamp: new Date(),
-        documentId,
-      };
-
-      setMessages((prev) => [...prev, userMessage]);
+      // Refresh messages from database to get system messages for document upload
+      const messagesResponse = await fetch(`/api/conversations/${conversationId}`);
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json();
+        const fetchedMessages: Message[] = messagesData.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+        }));
+        setMessages(fetchedMessages);
+      }
     } catch (error) {
       console.error('Upload error:', error);
       alert(error instanceof Error ? error.message : 'Failed to upload document');
@@ -106,26 +137,39 @@ export function ChatInterface() {
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || !conversationId) return;
 
-    const userMessage: Message = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content,
-      timestamp: new Date(),
-    };
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          message: content,
+        }),
+      });
 
-    setMessages((prev) => [...prev, userMessage]);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to send message');
+      }
 
-    // TODO: Implement chat API call
-    const assistantMessage: Message = {
-      id: `msg-${Date.now() + 1}`,
-      role: 'assistant',
-      content: 'This is a placeholder response. Chat functionality will be implemented next.',
-      timestamp: new Date(),
-    };
-
-    setTimeout(() => {
-      setMessages((prev) => [...prev, assistantMessage]);
-    }, 500);
+      // Refresh messages from database to get the saved messages
+      const messagesResponse = await fetch(`/api/conversations/${conversationId}`);
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json();
+        const fetchedMessages: Message[] = messagesData.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+        }));
+        setMessages(fetchedMessages);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert(error instanceof Error ? error.message : 'Failed to send message');
+    }
   };
 
   return (

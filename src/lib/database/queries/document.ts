@@ -77,7 +77,7 @@ export async function markDocumentFailed(
     })
     .eq('id', documentId)
     .in('status', ['uploading', 'processing'])
-    .select('id');
+    .select('id, conversation_id, filename');
 
   if (error) {
     throw new Error(`Failed to mark document as failed: ${error.message}`);
@@ -85,7 +85,16 @@ export async function markDocumentFailed(
 
   if (!data || data.length === 0) {
     console.warn(`Document ${documentId} not in expected state (uploading or processing), may have already been updated`);
+    return;
   }
+
+  const { createMessage } = await import('./message');
+  const document = data[0];
+  await createMessage({
+    conversation_id: document.conversation_id,
+    role: 'system',
+    content: `Document "${document.filename}" processing failed: ${errorReason}`,
+  });
 }
 
 /**
@@ -126,7 +135,7 @@ export async function markDocumentReady(documentId: string): Promise<void> {
     })
     .eq('id', documentId)
     .eq('status', 'processing')
-    .select('id')
+    .select('id, conversation_id, filename')
     .single();
 
   if (error) {
@@ -136,6 +145,14 @@ export async function markDocumentReady(documentId: string): Promise<void> {
   if (!data) {
     throw new Error('Document not in expected state (processing)');
   }
+
+  // Create system message for document ready
+  const { createMessage } = await import('./message');
+  await createMessage({
+    conversation_id: data.conversation_id,
+    role: 'system',
+    content: `Document "${data.filename}" processing completed and is ready.`,
+  });
 }
 
 /**

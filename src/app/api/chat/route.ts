@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChatRequest, ChatResponse, ChatHistoryResponse } from '@/types/api';
+import { getConversationById } from '@/lib/database/queries/conversation';
+import { createMessage } from '@/lib/database/queries/message';
 
 export const runtime = 'nodejs';
 export const maxDuration = 10;
@@ -18,17 +20,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Implement chat logic
-    // 1. Validate conversation exists
-    // 2. Save user message to database
+    const conversation = await getConversationById(conversation_id);
+    if (!conversation) {
+      return NextResponse.json(
+        { error: 'Conversation not found' },
+        { status: 404 }
+      );
+    }
+
+    await createMessage({
+      conversation_id,
+      role: 'user',
+      content: message,
+    });
+
+    // TODO: Implement full chat logic
     // 3. Perform vector search on document chunks
     // 4. Generate AI response using retrieved context
     // 5. Save assistant message to database
     // 6. Return response with sources
 
     // Placeholder response - replace with actual implementation
+    const answer = `This is a placeholder response for message: "${message}"`;
+    
+    await createMessage({
+      conversation_id,
+      role: 'assistant',
+      content: answer,
+    });
+
     const response: ChatResponse = {
-      answer: `This is a placeholder response for message: "${message}"`,
+      answer,
       sources: [
         {
           document_id: 'doc_placeholder_1',
@@ -63,27 +85,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // TODO: Implement chat history retrieval logic
-    // 1. Validate conversation exists
-    // 2. Query messages for the conversation
-    // 3. Return formatted message history
+    const conversation = await getConversationById(conversationId);
+    if (!conversation) {
+      return NextResponse.json(
+        { error: 'Conversation not found' },
+        { status: 404 }
+      );
+    }
 
-    // Placeholder response - replace with actual implementation
+    const { getMessagesByConversation } = await import('@/lib/database/queries/message');
+    const messages = await getMessagesByConversation(conversationId);
+
     const response: ChatHistoryResponse = {
-      messages: [
-        {
-          id: 'msg_placeholder_1',
-          role: 'user',
-          content: 'Hello, can you help me with this document?',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 'msg_placeholder_2',
-          role: 'assistant',
-          content: 'Of course! I\'d be happy to help you analyze your document.',
-          created_at: new Date().toISOString()
-        }
-      ]
+      messages: messages.map(msg => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        created_at: msg.created_at,
+      })),
     };
 
     return NextResponse.json(response, { status: 200 });
