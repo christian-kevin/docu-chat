@@ -12,13 +12,19 @@ export interface Document {
   created_at: string
 }
 
+export interface DocumentChunkMetadata {
+  pageNumber?: number
+  rowIndex?: number
+}
+
 export interface DocumentChunk {
   id: string
   document_id: string
   conversation_id: string
   chunk_index: number
   content: string
-  embedding: number[]
+  embedding: number[] | null
+  metadata: DocumentChunkMetadata | null
   created_at: string
 }
 
