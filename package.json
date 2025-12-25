@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "dotenv -e env/supabase.env -e env/open-router.env -- next dev",
+    "start": "dotenv -e env/supabase.env -e env/open-router.env -- next start",
+    "build": "dotenv -e env/supabase.env -e env/open-router.env -- next build",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -49,6 +49,7 @@
     "@typescript-eslint/eslint-plugin": "^8.50.1",
     "@typescript-eslint/parser": "^8.50.1",
     "autoprefixer": "^10.4.20",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.1.1",
     "husky": "^9.1.7",
@@ -60,6 +61,7 @@
     "prettier": "^3.1.1",
     "supabase": "^2.70.4",
     "tailwindcss": "^3.4.19",
+    "tailwindcss-animate": "^1.0.7",
     "ts-jest": "^29.4.6",
     "typescript": "^5.3.3"
   },
