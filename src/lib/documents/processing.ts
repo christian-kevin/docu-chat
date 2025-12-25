@@ -2,6 +2,8 @@ import { getDocumentFile } from '@/utils/storage';
 import { parsePDF } from '@/lib/ingestion/pdf';
 import { parseCSV } from '@/lib/ingestion/csv';
 import { chunkPDF, chunkCSV } from '@/lib/ingestion/chunking';
+import { semanticizeText } from '@/lib/ai/semanticize';
+import { embedText } from '@/lib/ai/embeddings';
 import {
   acquireProcessingLock,
   markDocumentReady,
@@ -9,6 +11,10 @@ import {
   deleteDocumentChunks,
 } from '@/lib/database/queries/document';
 import { getSupabaseAdmin } from '@/lib/database/client';
+import pLimit from 'p-limit';
+
+const SEMANTICIZE_CONCURRENCY = 3;
+const semanticizeLimit = pLimit(SEMANTICIZE_CONCURRENCY);
 
 export async function processDocument(documentId: string): Promise<boolean> {
   const document = await acquireProcessingLock(documentId);
@@ -27,12 +33,40 @@ export async function processDocument(documentId: string): Promise<boolean> {
     let chunks;
     if (document.file_type === 'pdf') {
       const parsedPDF = await parsePDF(fileBuffer);
-      chunks = chunkPDF(parsedPDF, document.id, document.conversation_id);
+      
+      const semanticizedPages = await Promise.all(
+        parsedPDF.pages.map((page) =>
+          semanticizeLimit(() =>
+            semanticizeText({
+              content: page.text,
+              documentType: 'pdf',
+              metadata: { page: page.pageNumber },
+            }).then((semanticText) => ({ ...page, text: semanticText }))
+          )
+        )
+      );
+
+      const semanticizedPDF = { ...parsedPDF, pages: semanticizedPages };
+      chunks = chunkPDF(semanticizedPDF, document.id, document.conversation_id);
     } else {
       const csvText = fileBuffer.toString('utf-8');
       const entityName = document.filename.replace(/\.csv$/i, '').replace(/[_-]/g, ' ');
       const parsedCSV = parseCSV(csvText, entityName);
-      chunks = chunkCSV(parsedCSV, document.id, document.conversation_id);
+
+      const semanticizedRows = await Promise.all(
+        parsedCSV.rows.map((row) =>
+          semanticizeLimit(() =>
+            semanticizeText({
+              content: row.serializedText,
+              documentType: 'csv',
+              metadata: { row: row.rowIndex },
+            }).then((semanticText) => ({ ...row, serializedText: semanticText }))
+          )
+        )
+      );
+
+      const semanticizedCSV = { ...parsedCSV, rows: semanticizedRows };
+      chunks = chunkCSV(semanticizedCSV, document.id, document.conversation_id);
     }
 
     if (chunks.length === 0) {
@@ -60,6 +94,29 @@ export async function processDocument(documentId: string): Promise<boolean> {
     if (insertError) {
       await markDocumentFailed(documentId, `Failed to insert chunks: ${insertError.message}`);
       throw new Error(`Failed to insert chunks: ${insertError.message}`);
+    }
+
+    const chunkContents = chunks.map((chunk) => chunk.content);
+    const embeddings = await embedText(chunkContents);
+
+    if (embeddings.length !== chunks.length) {
+      await markDocumentFailed(documentId, `Embedding count mismatch: expected ${chunks.length}, got ${embeddings.length}`);
+      throw new Error(`Embedding count mismatch: expected ${chunks.length}, got ${embeddings.length}`);
+    }
+
+    const { error: updateError } = await getSupabaseAdmin()
+      .from('document_chunks')
+      .upsert(
+        chunks.map((chunk, i) => ({
+          id: chunk.id,
+          embedding: embeddings[i],
+        })),
+        { onConflict: 'id' }
+      );
+
+    if (updateError) {
+      await markDocumentFailed(documentId, `Failed to update embeddings: ${updateError.message}`);
+      throw new Error(`Failed to update embeddings: ${updateError.message}`);
     }
 
     await markDocumentReady(documentId);

@@ -162,6 +162,24 @@ export async function deleteDocumentChunks(documentId: string): Promise<void> {
 }
 
 /**
+ * @param chunkId - Chunk ID
+ * @param embedding - Embedding vector
+ * @throws Error if update fails
+ */
+export async function updateChunkEmbedding(chunkId: string, embedding: number[]): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .from('document_chunks')
+    .update({ embedding })
+    .eq('id', chunkId)
+    .select('id')
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update chunk embedding: ${error.message}`);
+  }
+}
+
+/**
  * @param conversationId - Conversation ID to filter documents
  * @returns Array of document records (excluding soft-deleted)
  * @throws Error if database query fails
