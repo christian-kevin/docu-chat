@@ -1,7 +1,9 @@
 import { parseCSV, CSVParseError } from '@/lib/ingestion/csv';
+import { parsePDF, PDFParseError } from '@/lib/ingestion/pdf';
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-export const MAX_CSV_ROWS = 10000;
+export const MAX_CSV_ROWS = 2000;
+export const MAX_PDF_PAGES = 30;
 export const ALLOWED_TYPES = ['application/pdf', 'text/csv', 'application/vnd.ms-excel', 'text/plain'] as const;
 
 export interface ValidationResult {
@@ -43,7 +45,7 @@ export function validateFileType(file: globalThis.File): ValidationResult {
 }
 
 /**
- * Validates CSV files by parsing and checking row count limit (10,000 rows).
+ * Validates CSV files by parsing and checking row count limit (2,000 rows).
  * Skips validation for non-CSV files.
  * 
  * @param file - File to validate (must be CSV type)
@@ -56,7 +58,15 @@ export async function validateCSVRows(file: globalThis.File): Promise<Validation
 
   try {
     const text = await file.text();
-    parseCSV(text);
+    const parsed = parseCSV(text);
+    
+    if (parsed.rows.length > MAX_CSV_ROWS) {
+      return {
+        valid: false,
+        error: `Document too large for synchronous processing: ${parsed.rows.length} rows (max ${MAX_CSV_ROWS})`,
+      };
+    }
+    
     return { valid: true };
   } catch (error) {
     if (error instanceof CSVParseError) {
@@ -79,7 +89,52 @@ export async function validateCSVRows(file: globalThis.File): Promise<Validation
 }
 
 /**
- * Comprehensive document validation: checks file size, type, and CSV row limits.
+ * Validates PDF files by parsing and checking page count limit (30 pages).
+ * Skips validation for non-PDF files.
+ * 
+ * @param file - File to validate (must be PDF type)
+ * @returns Validation result with valid flag and optional error message
+ */
+export async function validatePDFPages(file: globalThis.File): Promise<ValidationResult> {
+  if (!file.type.includes('pdf')) {
+    return { valid: true };
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const parsed = await parsePDF(buffer);
+    
+    if (parsed.pages.length > MAX_PDF_PAGES) {
+      return {
+        valid: false,
+        error: `Document too large for synchronous processing: ${parsed.pages.length} pages (max ${MAX_PDF_PAGES})`,
+      };
+    }
+    
+    return { valid: true };
+  } catch (error) {
+    if (error instanceof PDFParseError) {
+      return {
+        valid: false,
+        error: error.message,
+      };
+    }
+    if (error instanceof Error) {
+      return {
+        valid: false,
+        error: `Failed to validate PDF file: ${error.message}`,
+      };
+    }
+    return {
+      valid: false,
+      error: 'Failed to validate PDF file',
+    };
+  }
+}
+
+/**
+ * Comprehensive document validation: checks file size, type, CSV row limits, and PDF page limits.
  * Runs all validation checks in sequence and returns first failure or success.
  * 
  * @param file - File to validate
@@ -99,6 +154,11 @@ export async function validateDocument(file: globalThis.File): Promise<Validatio
   const csvCheck = await validateCSVRows(file);
   if (!csvCheck.valid) {
     return csvCheck;
+  }
+
+  const pdfCheck = await validatePDFPages(file);
+  if (!pdfCheck.valid) {
+    return pdfCheck;
   }
 
   return { valid: true };

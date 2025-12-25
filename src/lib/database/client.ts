@@ -1,5 +1,19 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
+const API_TIMEOUT_MS = 10000;
+
+function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  return fetch(url, {
+    ...options,
+    signal: controller.signal,
+  }).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
 function getSupabaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!url) {
@@ -45,7 +59,10 @@ export function getSupabaseAdmin(): SupabaseClient {
         auth: {
           autoRefreshToken: false,
           persistSession: false
-        }
+        },
+        global: {
+          fetch: fetchWithTimeout,
+        },
       }
     );
   }
@@ -56,7 +73,12 @@ export function getSupabaseClient(): SupabaseClient {
   if (!supabaseClientInstance) {
     supabaseClientInstance = createClient(
       getSupabaseUrl(),
-      getAnonKey()
+      getAnonKey(),
+      {
+        global: {
+          fetch: fetchWithTimeout,
+        },
+      }
     );
   }
   return supabaseClientInstance;

@@ -11,10 +11,13 @@ import {
   deleteDocumentChunks,
 } from '@/lib/database/queries/document';
 import { getSupabaseAdmin } from '@/lib/database/client';
+import { MAX_PDF_PAGES, MAX_CSV_ROWS } from '@/lib/documents/validation';
 import pLimit from 'p-limit';
 
 const SEMANTICIZE_CONCURRENCY = 3;
 const semanticizeLimit = pLimit(SEMANTICIZE_CONCURRENCY);
+
+const MAX_CHUNKS = 200;
 
 export async function processDocument(documentId: string): Promise<boolean> {
   const document = await acquireProcessingLock(documentId);
@@ -33,6 +36,11 @@ export async function processDocument(documentId: string): Promise<boolean> {
     let chunks;
     if (document.file_type === 'pdf') {
       const parsedPDF = await parsePDF(fileBuffer);
+      
+      if (parsedPDF.pages.length > MAX_PDF_PAGES) {
+        await markDocumentFailed(documentId, `Document too large: ${parsedPDF.pages.length} pages (max ${MAX_PDF_PAGES})`);
+        throw new Error(`Document too large for synchronous processing: ${parsedPDF.pages.length} pages (max ${MAX_PDF_PAGES})`);
+      }
       
       const semanticizedPages = await Promise.all(
         parsedPDF.pages.map((page) =>
@@ -53,6 +61,11 @@ export async function processDocument(documentId: string): Promise<boolean> {
       const entityName = document.filename.replace(/\.csv$/i, '').replace(/[_-]/g, ' ');
       const parsedCSV = parseCSV(csvText, entityName);
 
+      if (parsedCSV.rows.length > MAX_CSV_ROWS) {
+        await markDocumentFailed(documentId, `Document too large: ${parsedCSV.rows.length} rows (max ${MAX_CSV_ROWS})`);
+        throw new Error(`Document too large for synchronous processing: ${parsedCSV.rows.length} rows (max ${MAX_CSV_ROWS})`);
+      }
+
       const semanticizedRows = await Promise.all(
         parsedCSV.rows.map((row) =>
           semanticizeLimit(() =>
@@ -72,6 +85,11 @@ export async function processDocument(documentId: string): Promise<boolean> {
     if (chunks.length === 0) {
       await markDocumentFailed(documentId, 'No chunks generated');
       return true;
+    }
+
+    if (chunks.length > MAX_CHUNKS) {
+      await markDocumentFailed(documentId, `Document too large: ${chunks.length} chunks (max ${MAX_CHUNKS})`);
+      throw new Error(`Document too large for synchronous processing: ${chunks.length} chunks (max ${MAX_CHUNKS})`);
     }
 
     await deleteDocumentChunks(document.id);
