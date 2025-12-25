@@ -13,6 +13,7 @@ export interface Document {
   processing_started_at: string | null
   processing_attempts: number
   error_reason: string | null
+  deleted_at: string | null
   created_at: string
 }
 

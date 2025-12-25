@@ -9,7 +9,6 @@ import {
   deleteDocumentChunks,
 } from '@/lib/database/queries/document';
 import { getSupabaseAdmin } from '@/lib/database/client';
-import type { Document } from '@/lib/database/schema';
 
 export async function processDocument(documentId: string): Promise<boolean> {
   const document = await acquireProcessingLock(documentId);
