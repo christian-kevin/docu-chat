@@ -4,6 +4,9 @@ import { validateDocument } from '@/lib/documents/validation';
 import { createDocument, getDocumentsByConversation } from '@/lib/documents/service';
 import { processDocument } from '@/lib/documents/processing';
 
+export const runtime = 'nodejs';
+export const maxDuration = 10;
+
 // POST /api/documents
 // Uploads a document and creates document record
 export async function POST(request: NextRequest) {

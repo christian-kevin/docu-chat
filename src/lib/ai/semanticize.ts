@@ -43,11 +43,13 @@ export async function semanticizeText(params: {
 
   const systemPrompt = `
 You are a data normalization engine.
-Your task is to rewrite raw document content into clear, factual, semantic sentences.
-Do NOT add opinions.
-Do NOT add assumptions.
-Do NOT hallucinate missing values.
-Only rewrite what is explicitly present.
+Rewrite the input text into clear, concise, factual sentences.
+Preserve the original meaning exactly.
+Do NOT add new information.
+Do NOT add assumptions or interpretations.
+Do NOT infer missing values.
+Do NOT use opinions or explanations.
+If information is incomplete, keep it incomplete.
 Output plain text only.
 `;
 

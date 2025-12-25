@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChatRequest, ChatResponse, ChatHistoryResponse } from '@/types/api';
 
+export const runtime = 'nodejs';
+export const maxDuration = 10;
+
 // POST /api/chat
 // Processes a chat message and returns AI response with sources
 export async function POST(request: NextRequest) {
