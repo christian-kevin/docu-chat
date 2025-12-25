@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { ConversationList } from './ConversationList';
 
 export interface Message {
   id: string;
@@ -16,6 +17,7 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [uploadedDocuments, setUploadedDocuments] = useState<Map<string, string>>(new Map());
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -26,20 +28,42 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    const createConversation = async () => {
-      try {
-        const response = await fetch('/api/conversations', {
-          method: 'POST',
-        });
-        const data = await response.json();
-        setConversationId(data.conversation_id);
-      } catch (error) {
-        console.error('Failed to create conversation:', error);
+  const handleStartChat = async () => {
+    if (isCreatingConversation) return;
+    
+    setIsCreatingConversation(true);
+    try {
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create conversation');
       }
-    };
-    createConversation();
-  }, []);
+      const data = await response.json();
+      setConversationId(data.conversation_id);
+      setMessages([]);
+      setUploadedDocuments(new Map());
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
+      alert('Failed to start chat. Please try again.');
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  };
+
+  const handleSelectConversation = (id: string) => {
+    setConversationId(id);
+    setMessages([]);
+    setUploadedDocuments(new Map());
+  };
+
+  const handleDeleteConversation = (id: string) => {
+    if (conversationId === id) {
+      setConversationId(null);
+      setMessages([]);
+      setUploadedDocuments(new Map());
+    }
+  };
 
   const handleDocumentUpload = async (file: File) => {
     if (!conversationId) return;
@@ -105,38 +129,76 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
-      <header className="flex items-center justify-between p-4 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
+    <div className="flex h-screen bg-gray-900 text-white">
+      <div className="w-64 border-r border-gray-800 flex flex-col">
+        <div className="p-4 border-b border-gray-800">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold">DocuChat</h1>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold">DocuChat</h1>
-            <p className="text-sm text-gray-400">AI-powered document analysis</p>
-          </div>
+          <button
+            onClick={handleStartChat}
+            disabled={isCreatingConversation}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            {isCreatingConversation ? 'Starting...' : '+ New Chat'}
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-          <span className="text-sm text-gray-400">Online</span>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-y-auto">
-        <MessageList
-          messages={messages}
-          uploadedDocuments={uploadedDocuments}
-          conversationId={conversationId}
+        <ConversationList
+          onSelectConversation={handleSelectConversation}
+          selectedConversationId={conversationId}
+          onDeleteConversation={handleDeleteConversation}
         />
-        <div ref={messagesEndRef} />
       </div>
 
-      <MessageInput
-        onSend={handleSendMessage}
-        onDocumentUpload={handleDocumentUpload}
-      />
+      <div className="flex-1 flex flex-col">
+        <header className="flex items-center justify-between p-4 border-b border-gray-800">
+          <div>
+            <h2 className="text-lg font-semibold">AI-powered document analysis</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-sm text-gray-400">Online</span>
+          </div>
+        </header>
+
+        {!conversationId ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-gray-400 mb-4">Start a new conversation to begin</p>
+              <button
+                onClick={handleStartChat}
+                disabled={isCreatingConversation}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                {isCreatingConversation ? 'Starting...' : 'Start Chat'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 overflow-y-auto">
+              <MessageList
+                messages={messages}
+                uploadedDocuments={uploadedDocuments}
+                conversationId={conversationId}
+              />
+              <div ref={messagesEndRef} />
+            </div>
+
+            <MessageInput
+              onSend={handleSendMessage}
+              onDocumentUpload={handleDocumentUpload}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }

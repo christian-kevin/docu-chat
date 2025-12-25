@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { DeleteConversationResponse } from '@/types/api';
+import { softDeleteConversation } from '@/lib/database/queries/conversation';
 
 // DELETE /api/conversations/[id]
 // Deletes a conversation and all associated data
@@ -17,11 +18,8 @@ export async function DELETE(
       );
     }
 
-    // TODO: Implement conversation deletion logic
-    // 1. Validate conversation exists
-	// 2. Mark converstaion deleted
-    
-    // Placeholder response - replace with actual implementation
+    await softDeleteConversation(conversationId);
+
     const response: DeleteConversationResponse = {
       status: 'deleted'
     };

@@ -1,4 +1,21 @@
-import * as pdfjsLib from 'pdfjs-dist';
+if (typeof window === 'undefined') {
+  if (typeof globalThis.DOMMatrix === 'undefined') {
+    globalThis.DOMMatrix = class DOMMatrix {
+      constructor(init?: string | number[]) {
+        // Minimal polyfill for serverless
+      }
+      static fromMatrix() {
+        return new DOMMatrix();
+      }
+    } as any;
+  }
+}
+
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+if (typeof window === 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+}
 
 export interface ParsedPDFPage {
   pageNumber: number;

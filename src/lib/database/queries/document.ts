@@ -96,20 +96,13 @@ export async function markDocumentFailed(
  */
 export async function acquireProcessingLock(documentId: string): Promise<Document | null> {
   const { data, error } = await getSupabaseAdmin()
-    .from('documents')
-    .update({
-      processing_started_at: new Date().toISOString(),
-      processing_attempts: 'processing_attempts + 1',
-    } as any)
-    .eq('id', documentId)
-    .eq('status', 'processing')
-    .is('processing_started_at', null)
-    .is('deleted_at', null)
-    .select()
+    .rpc('acquire_document_processing_lock', {
+      p_document_id: documentId,
+    })
     .single();
 
   if (error) {
-    if (error.code === 'PGRST116') {
+    if (error.code === 'PGRST116' || error.code === '42883') {
       return null;
     }
     throw new Error(`Failed to acquire processing lock: ${error.message}`);

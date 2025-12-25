@@ -1,18 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { CreateConversationResponse, ConversationListResponse } from '@/types/api';
+import { createConversation, getConversations } from '@/lib/database/queries/conversation';
 
 // POST /api/conversations
 // Creates a new conversation
 export async function POST() {
   try {
-    // TODO: Implement conversation creation logic
-    // 1. Generate unique conversation ID
-    // 2. Create conversation record in database
-    // 3. Return conversation ID
+    const conversationId = await createConversation();
 
-    const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Placeholder response - replace with actual implementation
     const response: CreateConversationResponse = {
       conversation_id: conversationId
     };
@@ -32,18 +27,13 @@ export async function POST() {
 // Lists all conversations
 export async function GET() {
   try {
-    // TODO: Implement conversation listing logic
-    // 1. Query all conversations from database
-    // 2. Return formatted conversation list
+    const conversations = await getConversations();
 
-    // Placeholder response - replace with actual implementation
     const response: ConversationListResponse = {
-      conversations: [
-        {
-          id: 'conv_placeholder_1',
-          created_at: new Date().toISOString()
-        }
-      ]
+      conversations: conversations.map(conv => ({
+        id: conv.id,
+        created_at: conv.created_at,
+      })),
     };
 
     return NextResponse.json(response, { status: 200 });

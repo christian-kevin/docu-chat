@@ -1,6 +1,7 @@
 export interface Conversation {
   id: string
   created_at: string
+  deleted_at: string | null
 }
 
 export interface Document {

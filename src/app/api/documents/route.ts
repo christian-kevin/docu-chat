@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { UploadDocumentResponse, DocumentListResponse } from '@/types/api';
 import { validateDocument } from '@/lib/documents/validation';
 import { createDocument, getDocumentsByConversation } from '@/lib/documents/service';
+import { processDocument } from '@/lib/documents/processing';
 
 // POST /api/documents
 // Uploads a document and creates document record
@@ -27,6 +28,10 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await createDocument({ file, conversationId });
+
+    processDocument(result.documentId).catch((error) => {
+      console.error(`[API] Failed to process document ${result.documentId}:`, error);
+    });
 
     const response: UploadDocumentResponse = {
       document_id: result.documentId,

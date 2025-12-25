@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useDocumentPolling } from '@/hooks/useDocumentPolling';
 
 interface DocumentStatusProps {
@@ -9,6 +10,31 @@ interface DocumentStatusProps {
 
 export function DocumentStatus({ documentId, filename }: DocumentStatusProps) {
   const { status, isLoading } = useDocumentPolling(documentId);
+  const [isMarkingFailed, setIsMarkingFailed] = useState(false);
+
+  const handleForceFail = async () => {
+    if (!confirm('Are you sure you want to mark this document as failed?')) {
+      return;
+    }
+
+    setIsMarkingFailed(true);
+    try {
+      const response = await fetch(`/api/documents/${documentId}/fail`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark document as failed');
+      }
+
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to mark document as failed:', error);
+      alert('Failed to mark document as failed');
+    } finally {
+      setIsMarkingFailed(false);
+    }
+  };
 
   const getStatusIcon = () => {
     if (isLoading) {
@@ -48,11 +74,23 @@ export function DocumentStatus({ documentId, filename }: DocumentStatusProps) {
   };
 
   return (
-    <div className="flex items-center gap-2 text-sm">
-      {getStatusIcon()}
-      <span className="text-gray-400">{filename}</span>
-      <span className="text-gray-500">•</span>
-      <span className="text-gray-400">{getStatusText()}</span>
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2 text-sm">
+        {getStatusIcon()}
+        <span className="text-gray-400">{filename}</span>
+        <span className="text-gray-500">•</span>
+        <span className="text-gray-400">{getStatusText()}</span>
+      </div>
+      {(status === 'processing' || isLoading) && (
+        <button
+          onClick={handleForceFail}
+          disabled={isMarkingFailed}
+          className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 px-2 py-1"
+          title="Mark as failed"
+        >
+          {isMarkingFailed ? 'Marking...' : 'Force Fail'}
+        </button>
+      )}
     </div>
   );
 }
