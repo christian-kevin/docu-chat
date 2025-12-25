@@ -1,4 +1,5 @@
 import { parse } from 'csv-parse/sync';
+import { MAX_CSV_ROWS } from '@/lib/documents/validation';
 
 export interface ParsedCSVRow {
   rowIndex: number;
@@ -34,6 +35,12 @@ export function parseCSV(csvText: string, entityName: string = 'record'): Parsed
     
     if (headers.length === 0) {
       throw new CSVParseError('CSV file has no headers');
+    }
+
+    if (records.length > MAX_CSV_ROWS) {
+      throw new CSVParseError(
+        `CSV file exceeds maximum row limit of ${MAX_CSV_ROWS}. Found ${records.length} rows.`
+      );
     }
 
     const serializedRows: ParsedCSVRow[] = records.map((record, index) => {

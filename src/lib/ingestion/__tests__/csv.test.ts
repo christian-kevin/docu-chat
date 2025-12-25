@@ -81,4 +81,13 @@ describe('parseCSV', () => {
     expect(result.rows[0].serializedText).toContain('Price:');
     expect(result.rows[0].serializedText).toContain('Category:');
   });
+
+  it('should throw CSVParseError for CSV exceeding 10k rows', () => {
+    const header = 'col1,col2\n';
+    const rows = Array.from({ length: 10001 }, () => 'val1,val2\n').join('');
+    const csvText = header + rows;
+
+    expect(() => parseCSV(csvText)).toThrow(CSVParseError);
+    expect(() => parseCSV(csvText)).toThrow('exceeds maximum row limit');
+  });
 });

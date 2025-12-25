@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { UploadDocumentResponse, DocumentListResponse } from '@/types/api';
+import { validateDocument } from '@/lib/documents/validation';
+import { createDocument, getDocumentsByConversation } from '@/lib/documents/service';
 
 // POST /api/documents
 // Uploads a document and creates document record
@@ -16,37 +18,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'text/csv', 'application/vnd.ms-excel', 'text/plain'];
-    if (!allowedTypes.includes(file.type)) {
+    const validation = await validateDocument(file);
+    if (!validation.valid) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only PDF and CSV files are supported.' },
+        { error: validation.error },
         { status: 400 }
       );
     }
 
-    // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: 'File too large. Maximum size is 10MB.' },
-        { status: 400 }
-      );
-    }
+    const result = await createDocument({ file, conversationId });
 
-    // TODO: Implement document upload logic
-    // 1. Generate unique document ID
-    // 2. Upload file to storage (Supabase Storage)
-    // 3. Create document record in database
-    // 4. Trigger document processing pipeline
-    // 5. Return document ID and initial status
-
-    const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Placeholder response - replace with actual implementation
     const response: UploadDocumentResponse = {
-      document_id: documentId,
-      status: 'processing'
+      document_id: result.documentId,
+      status: result.status
     };
 
     return NextResponse.json(response, { status: 201 });
@@ -74,22 +58,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // TODO: Implement document listing logic
-    // 1. Validate conversation exists
-    // 2. Query documents for the conversation
-    // 3. Return formatted document list
+    const documents = await getDocumentsByConversation(conversationId);
 
-    // Placeholder response - replace with actual implementation
     const response: DocumentListResponse = {
-      documents: [
-        {
-          id: 'doc_placeholder_1',
-          filename: 'sample.pdf',
-          file_type: 'pdf',
-          status: 'ready',
-          created_at: new Date().toISOString()
-        }
-      ]
+      documents: documents.map(doc => ({
+        id: doc.id,
+        filename: doc.filename,
+        file_type: doc.file_type,
+        status: doc.status === 'processing' ? 'processing' : doc.status === 'completed' ? 'ready' : 'failed',
+        created_at: doc.created_at,
+      })),
     };
 
     return NextResponse.json(response, { status: 200 });

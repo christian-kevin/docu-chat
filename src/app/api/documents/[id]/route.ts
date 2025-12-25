@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { DocumentMetadataResponse } from '@/types/api';
+import { getDocumentById } from '@/lib/documents/service';
 
 // GET /api/documents/[id]
 // Gets document metadata and ingestion status
@@ -17,19 +18,22 @@ export async function GET(
       );
     }
 
-    // TODO: Implement document metadata retrieval logic
-    // 1. Validate document exists
-    // 2. Query document metadata from database
-    // 3. Return formatted document metadata
+    const document = await getDocumentById(documentId);
 
-    // Placeholder response - replace with actual implementation
+    if (!document) {
+      return NextResponse.json(
+        { error: 'Document not found' },
+        { status: 404 }
+      );
+    }
+
     const response: DocumentMetadataResponse = {
-      id: documentId,
-      conversation_id: 'conv_placeholder_1',
-      filename: 'sample.pdf',
-      file_type: 'pdf',
-      status: 'ready',
-      created_at: new Date().toISOString()
+      id: document.id,
+      conversation_id: document.conversation_id,
+      filename: document.filename,
+      file_type: document.file_type,
+      status: document.status === 'processing' ? 'processing' : document.status === 'completed' ? 'ready' : 'failed',
+      created_at: document.created_at,
     };
 
     return NextResponse.json(response, { status: 200 });
