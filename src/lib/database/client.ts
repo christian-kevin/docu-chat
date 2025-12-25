@@ -2,12 +2,12 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const API_TIMEOUT_MS = 10000;
 
-function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  return fetch(url, {
-    ...options,
+  return fetch(input, {
+    ...init,
     signal: controller.signal,
   }).finally(() => {
     clearTimeout(timeoutId);
