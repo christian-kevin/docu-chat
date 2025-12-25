@@ -160,20 +160,20 @@ export async function processDocument(documentId: string): Promise<boolean> {
     }
 
     console.log(`[processDocument] Updating chunk embeddings in database`);
-    const { error: updateError } = await getSupabaseAdmin()
-      .from('document_chunks')
-      .upsert(
-        chunks.map((chunk, i) => ({
-          id: chunk.id,
-          embedding: embeddings[i],
-        })),
-        { onConflict: 'id' }
-      );
-
-    if (updateError) {
-      console.error(`[processDocument] Failed to update embeddings: ${updateError.message}`);
-      await markDocumentFailed(documentId, `Failed to update embeddings: ${updateError.message}`);
-      throw new Error(`Failed to update embeddings: ${updateError.message}`);
+    const updatePromises = chunks.map((chunk, i) =>
+      getSupabaseAdmin()
+        .from('document_chunks')
+        .update({ embedding: embeddings[i] })
+        .eq('id', chunk.id)
+    );
+    
+    const updateResults = await Promise.all(updatePromises);
+    const failedUpdate = updateResults.find((result) => result.error);
+    
+    if (failedUpdate?.error) {
+      console.error(`[processDocument] Failed to update embeddings: ${failedUpdate.error.message}`);
+      await markDocumentFailed(documentId, `Failed to update embeddings: ${failedUpdate.error.message}`);
+      throw new Error(`Failed to update embeddings: ${failedUpdate.error.message}`);
     }
 
     console.log(`[processDocument] Embeddings updated. Marking document as ready: ${documentId}`);

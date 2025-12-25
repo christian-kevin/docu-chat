@@ -77,15 +77,14 @@ export async function markDocumentFailed(
     })
     .eq('id', documentId)
     .in('status', ['uploading', 'processing'])
-    .select('id')
-    .single();
+    .select('id');
 
   if (error) {
     throw new Error(`Failed to mark document as failed: ${error.message}`);
   }
 
-  if (!data) {
-    throw new Error('Document not in expected state (uploading or processing)');
+  if (!data || data.length === 0) {
+    console.warn(`Document ${documentId} not in expected state (uploading or processing), may have already been updated`);
   }
 }
 
