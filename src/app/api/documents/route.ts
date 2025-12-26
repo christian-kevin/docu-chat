@@ -1,11 +1,11 @@
+export const runtime = 'nodejs';
+export const maxDuration = 10;
+
 import { NextRequest, NextResponse } from 'next/server';
 import type { UploadDocumentResponse, DocumentListResponse } from '@/types/api';
 import { validateDocument } from '@/lib/documents/validation';
 import { createDocument, getDocumentsByConversation } from '@/lib/documents/service';
 import { processDocument } from '@/lib/documents/processing';
-
-export const runtime = 'nodejs';
-export const maxDuration = 10;
 
 // POST /api/documents
 // Uploads a document and creates document record
@@ -30,10 +30,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log(`[API] Creating document for conversation: ${conversationId}, filename: ${file.name}, size: ${file.size}`);
     const result = await createDocument({ file, conversationId });
+    console.log(`[API] Document created: ${result.documentId}, status: ${result.status}`);
 
+    console.log(`[API] Starting async processing for document: ${result.documentId}`);
     processDocument(result.documentId).catch((error) => {
       console.error(`[API] Failed to process document ${result.documentId}:`, error);
+      console.error(`[API] Error details:`, {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack?.substring(0, 1000) : 'No stack trace',
+      });
     });
 
     const response: UploadDocumentResponse = {

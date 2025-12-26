@@ -1,3 +1,6 @@
+export const runtime = 'nodejs';
+export const maxDuration = 10;
+
 import { NextRequest, NextResponse } from 'next/server';
 import type { DeleteConversationResponse, ChatHistoryResponse } from '@/types/api';
 import { getConversationById, softDeleteConversation } from '@/lib/database/queries/conversation';

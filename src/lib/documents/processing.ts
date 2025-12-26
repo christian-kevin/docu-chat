@@ -21,7 +21,8 @@ const MAX_CHUNKS = 200;
 const MAX_PROCESSING_ATTEMPTS = 15;
 
 export async function processDocument(documentId: string): Promise<boolean> {
-  console.log(`[processDocument] Starting processing for document: ${documentId}`);
+  const startTime = Date.now();
+  console.log(`[processDocument] Starting processing for document: ${documentId} at ${new Date().toISOString()}`);
   
   const document = await acquireProcessingLock(documentId);
   if (!document) {
@@ -181,8 +182,14 @@ export async function processDocument(documentId: string): Promise<boolean> {
     console.log(`[processDocument] Document processing complete: ${documentId}`);
     return true;
   } catch (error) {
+    const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[processDocument] Error processing document ${documentId}:`, errorMessage);
+    console.error(`[processDocument] Error processing document ${documentId} after ${duration}ms:`, errorMessage);
+    console.error(`[processDocument] Error details:`, {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack?.substring(0, 1000) : 'No stack trace',
+    });
     await markDocumentFailed(documentId, errorMessage);
     throw error;
   }

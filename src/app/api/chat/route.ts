@@ -1,3 +1,6 @@
+export const runtime = 'nodejs';
+export const maxDuration = 10;
+
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChatRequest, ChatResponse, ChatHistoryResponse } from '@/types/api';
 import { getConversationById } from '@/lib/database/queries/conversation';
@@ -8,9 +11,6 @@ import { searchDocumentChunks } from '@/lib/database/queries/vector-search';
 import { embedQuery } from '@/lib/ai/embeddings';
 import { openrouterClient } from '@/lib/ai/openrouter-client';
 import { createHash } from 'crypto';
-
-export const runtime = 'nodejs';
-export const maxDuration = 10;
 
 function hashQuery(query: string, documentIds: string[], model: string, temperature: number, matchCount: number): string {
   const data = `${query}|${model}|${temperature}|${matchCount}|${JSON.stringify(documentIds.sort())}`;

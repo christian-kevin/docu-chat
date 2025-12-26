@@ -21,14 +21,22 @@ export class PDFParseError extends Error {
 }
 
 export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedPDF> {
+  const startTime = Date.now();
+  console.log('[parsePDF] Starting PDF parsing, buffer size:', pdfBuffer instanceof ArrayBuffer ? pdfBuffer.byteLength : pdfBuffer.length);
+  
   try {
     const buffer = pdfBuffer instanceof ArrayBuffer ? Buffer.from(pdfBuffer) : pdfBuffer;
     const uint8Array = new Uint8Array(buffer);
     
+    console.log('[parsePDF] Creating document proxy...');
     const pdf = await getDocumentProxy(uint8Array);
+    console.log('[parsePDF] Document proxy created, extracting text...');
+    
     const { text } = await extractText(pdf, { mergePages: false });
+    console.log('[parsePDF] Text extracted, pages:', text?.length || 0);
 
     if (!text || text.length === 0) {
+      console.error('[parsePDF] No text extracted from PDF');
       throw new PDFParseError('PDF contains no extractable text', 'EMPTY_TEXT');
     }
 
@@ -40,19 +48,32 @@ export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedP
       .filter((page: { pageNumber: number; text: string }) => page.text.length > 0);
 
     if (parsedPages.length === 0) {
+      console.error('[parsePDF] No pages with text after processing');
       throw new PDFParseError('PDF contains no extractable text', 'EMPTY_TEXT');
     }
+
+    const duration = Date.now() - startTime;
+    console.log(`[parsePDF] PDF parsing complete in ${duration}ms, pages: ${parsedPages.length}`);
 
     return {
       type: 'pdf',
       pages: parsedPages,
     };
   } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[parsePDF] Error after ${duration}ms:`, error);
+    
     if (error instanceof PDFParseError) {
       throw error;
     }
     
     if (error instanceof Error) {
+      console.error('[parsePDF] Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.substring(0, 500),
+      });
+      
       if (error.message.includes('encrypted') || error.message.includes('password') || error.message.includes('Encrypted')) {
         throw new PDFParseError('PDF is encrypted and cannot be parsed', 'ENCRYPTED_PDF');
       }
