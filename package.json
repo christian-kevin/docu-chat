@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e env/supabase.env -e env/open-router.env -- next dev",
-    "start": "dotenv -e env/supabase.env -e env/open-router.env -- next start",
-    "build": "dotenv -e env/supabase.env -e env/open-router.env -- next build",
+    "build": "next build",
+    "start": "next start",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
