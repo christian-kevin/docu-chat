@@ -11,9 +11,10 @@ interface ConversationListProps {
   onSelectConversation: (conversationId: string) => void;
   selectedConversationId: string | null;
   onDeleteConversation?: (conversationId: string) => void;
+  refreshTrigger?: number;
 }
 
-export function ConversationList({ onSelectConversation, selectedConversationId, onDeleteConversation }: ConversationListProps) {
+export function ConversationList({ onSelectConversation, selectedConversationId, onDeleteConversation, refreshTrigger }: ConversationListProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId,
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleDelete = async (e: React.MouseEvent, conversationId: string) => {
     e.stopPropagation();
