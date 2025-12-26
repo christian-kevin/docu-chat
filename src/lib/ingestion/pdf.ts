@@ -12,7 +12,7 @@ if (typeof window === 'undefined') {
       // @ts-ignore
       globalThis.GlobalWorkerOptions.workerSrc = '';
     }
-  } catch (e) {
+  } catch (_e) {
     // Silently fail if GlobalWorkerOptions is not available
   }
 }
@@ -47,7 +47,7 @@ export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedP
       static fromMatrix() {
         return new DOMMatrix();
       }
-    } as any;
+    } as unknown as typeof DOMMatrix;
     if (typeof global !== 'undefined') {
       global.DOMMatrix = globalThis.DOMMatrix;
     }
@@ -64,7 +64,7 @@ export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedP
         // @ts-ignore
         globalThis.GlobalWorkerOptions.workerSrc = '';
       }
-    } catch (e) {
+    } catch (_e) {
       // Silently fail if GlobalWorkerOptions is not available
     }
   }
@@ -93,7 +93,13 @@ export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedP
       const textContent = await page.getTextContent();
       
       const pageText = textContent.items
-        .map((item: any) => ('str' in item ? item.str : ''))
+        .map((item) => {
+          // Type guard: check if item has 'str' property (TextItem)
+          if ('str' in item && typeof item.str === 'string') {
+            return item.str;
+          }
+          return '';
+        })
         .filter(Boolean)
         .join(' ');
 
