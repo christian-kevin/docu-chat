@@ -21,8 +21,8 @@ export function ChatInterface() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const lastMessageCountRef = useRef<number>(0);
-  const [conversationListRefreshTrigger, setConversationListRefreshTrigger] = useState(0);
+  const [shouldPoll, setShouldPoll] = useState(false);
+  const [pollingMessageCount, setPollingMessageCount] = useState(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,39 +62,21 @@ export function ChatInterface() {
 
   useEffect(() => {
     fetchMessages();
+    // Reset polling when conversation changes
+    setShouldPoll(false);
+    setPollingMessageCount(0);
   }, [conversationId]);
 
-  // Poll for new messages only when there are processing documents
+  // Simple polling: poll when shouldPoll is true, stop when message count increases
   useEffect(() => {
-    if (!conversationId) {
-      lastMessageCountRef.current = 0;
+    if (!shouldPoll || !conversationId) {
       return;
     }
 
-    // Initialize message count when conversation changes
-    lastMessageCountRef.current = messages.length;
-
-    let pollingActive = true;
     let interval: NodeJS.Timeout | null = null;
 
-    const checkForNewMessages = async () => {
-      if (!pollingActive) return;
-
+    const checkMessages = async () => {
       try {
-        // Check if there are any processing documents
-        const docsResponse = await fetch(`/api/documents?conversation_id=${conversationId}`);
-        if (!docsResponse.ok) {
-          pollingActive = false;
-          if (interval) clearInterval(interval);
-          return;
-        }
-
-        const docsData = await docsResponse.json();
-        const hasProcessingDocs = docsData.documents?.some(
-          (doc: any) => doc.status === 'processing' || doc.status === 'uploading'
-        );
-
-        // Fetch messages to check for completion message
         const messagesResponse = await fetch(`/api/conversations/${conversationId}`);
         if (messagesResponse.ok) {
           const messagesData = await messagesResponse.json();
@@ -106,72 +88,35 @@ export function ChatInterface() {
           }));
 
           const currentMessageCount = fetchedMessages.length;
-          const lastCount = lastMessageCountRef.current;
           
-          // Check if we have a completion message
-          const hasCompletionMessage = fetchedMessages.some(
-            (msg) => msg.role === 'system' && 
-              (msg.content.includes('processing completed') || msg.content.includes('processing failed'))
-          );
+          // Update messages
+          setMessages(fetchedMessages);
 
-          // If we have new messages, update the UI
-          if (currentMessageCount !== lastCount) {
-            setMessages(fetchedMessages);
-            lastMessageCountRef.current = currentMessageCount;
+          // If message count increased, stop polling
+          if (currentMessageCount > pollingMessageCount) {
+            console.log('[polling] Message count increased from', pollingMessageCount, 'to', currentMessageCount, '- stopping polling');
+            setShouldPoll(false);
+            if (interval) {
+              clearInterval(interval);
+            }
           }
-
-          // Stop polling if no processing docs AND we have completion message
-          if (!hasProcessingDocs && hasCompletionMessage) {
-            pollingActive = false;
-            if (interval) clearInterval(interval);
-            return;
-          }
-
-          // Continue polling if there are still processing docs OR we haven't seen completion message yet
-          // This handles the race condition where processing finishes but message isn't created yet
         }
       } catch (error) {
-        console.error('Error polling for messages:', error);
+        console.error('[polling] Error polling messages:', error);
       }
     };
 
-    // Check once to see if we should start polling
-    const startPollingIfNeeded = async () => {
-      const docsResponse = await fetch(`/api/documents?conversation_id=${conversationId}`);
-      if (docsResponse.ok) {
-        const docsData = await docsResponse.json();
-        const hasProcessingDocs = docsData.documents?.some(
-          (doc: any) => doc.status === 'processing' || doc.status === 'uploading'
-        );
-        
-        // Check if we already have a completion message
-        const messagesResponse = await fetch(`/api/conversations/${conversationId}`);
-        if (messagesResponse.ok) {
-          const messagesData = await messagesResponse.json();
-          const hasCompletionMessage = messagesData.messages?.some(
-            (msg: any) => msg.role === 'system' && 
-              (msg.content.includes('processing completed') || msg.content.includes('processing failed'))
-          );
-
-          // Start polling if there are processing docs OR if we haven't seen completion message yet
-          // This ensures we catch the completion message even if processing just finished
-          if (hasProcessingDocs || !hasCompletionMessage) {
-            checkForNewMessages();
-            interval = setInterval(checkForNewMessages, 2000);
-          }
-        }
-      }
-    };
-
-    startPollingIfNeeded();
+    // Poll every 2 seconds
+    interval = setInterval(checkMessages, 2000);
+    // Also check immediately
+    checkMessages();
 
     return () => {
-      pollingActive = false;
       if (interval) {
         clearInterval(interval);
       }
     };
-  }, [conversationId]);
+  }, [shouldPoll, conversationId, pollingMessageCount]);
 
   const handleStartChat = async () => {
     if (isCreatingConversation) return;
@@ -188,8 +133,13 @@ export function ChatInterface() {
       setConversationId(data.conversation_id);
       setMessages([]);
       setUploadedDocuments(new Map());
-      // Refresh conversation list to show the new chat
-      setConversationListRefreshTrigger(prev => prev + 1);
+      setShouldPoll(false);
+      setPollingMessageCount(0);
+      
+      // Refresh conversation list
+      if ((window as any).refreshConversationList) {
+        (window as any).refreshConversationList();
+      }
     } catch (error) {
       console.error('Failed to create conversation:', error);
       alert('Failed to start chat. Please try again.');
@@ -253,8 +203,11 @@ export function ChatInterface() {
           timestamp: new Date(msg.created_at),
         }));
         setMessages(fetchedMessages);
-        // Trigger polling to start by updating message count ref
-        lastMessageCountRef.current = fetchedMessages.length;
+        
+        // Start polling and set the message count to watch
+        setPollingMessageCount(fetchedMessages.length);
+        setShouldPoll(true);
+        console.log('[upload] Started polling, watching for message count >', fetchedMessages.length);
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -329,7 +282,6 @@ export function ChatInterface() {
           onSelectConversation={handleSelectConversation}
           selectedConversationId={conversationId}
           onDeleteConversation={handleDeleteConversation}
-          refreshTrigger={conversationListRefreshTrigger}
         />
       </div>
 
