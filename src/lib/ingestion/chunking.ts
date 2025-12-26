@@ -2,6 +2,7 @@ import type { ParsedPDF } from './pdf';
 import type { ParsedCSV } from './csv';
 import type { DocumentChunk, DocumentChunkMetadata } from '@/lib/database/schema';
 import { randomUUID } from 'crypto';
+import { split } from 'sentence-splitter';
 
 export type ChunkWithMetadata = DocumentChunk;
 
@@ -100,16 +101,18 @@ export function chunkPDF(
   let globalChunkIndex = 0;
 
   for (const page of parsedPDF.pages) {
-    const paragraphs = splitIntoParagraphs(page.text);
-    const pageChunks = chunkParagraphs(paragraphs);
+    const sentences = split(page.text)
+      .filter((s: any) => s.type === 'Sentence')
+      .map((s: any) => s.raw.trim())
+      .filter((s: string) => s.length > 0);
 
-    for (const chunkContent of pageChunks) {
+    for (const sentence of sentences) {
       allChunks.push({
         id: randomUUID(),
         document_id: documentId,
         conversation_id: conversationId,
         chunk_index: globalChunkIndex++,
-        content: chunkContent,
+        content: sentence,
         embedding: null,
         created_at: new Date().toISOString(),
         metadata: {

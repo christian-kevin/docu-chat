@@ -2,7 +2,6 @@ if (typeof window === 'undefined') {
   if (typeof globalThis.DOMMatrix === 'undefined') {
     globalThis.DOMMatrix = class DOMMatrix {
       constructor(init?: string | number[]) {
-        // Minimal polyfill for serverless
       }
       static fromMatrix() {
         return new DOMMatrix();
@@ -11,11 +10,7 @@ if (typeof window === 'undefined') {
   }
 }
 
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-
-if (typeof window === 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-}
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 export interface ParsedPDFPage {
   pageNumber: number;
@@ -42,7 +37,7 @@ export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedP
     const buffer = pdfBuffer instanceof ArrayBuffer ? Buffer.from(pdfBuffer) : pdfBuffer;
     const uint8Array = new Uint8Array(buffer);
 
-    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+    const loadingTask = getDocument({ data: uint8Array });
     
     loadingTask.onPassword = () => {
       throw new PDFParseError('PDF is encrypted and cannot be parsed', 'ENCRYPTED_PDF');
@@ -50,17 +45,16 @@ export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedP
     
     const pdf = await loadingTask.promise;
 
-    const numPages = pdf.numPages;
     const pages: ParsedPDFPage[] = [];
 
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum);
       const textContent = await page.getTextContent();
       
       const pageText = textContent.items
-        .map((item) => ('str' in item ? item.str : ''))
+        .map((item: any) => ('str' in item ? item.str : ''))
         .filter(Boolean)
-        .join('\n');
+        .join(' ');
 
       if (pageText.trim()) {
         const normalizedText = normalizeWhitespace(pageText);
@@ -86,6 +80,9 @@ export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedP
     }
     
     if (error instanceof Error) {
+      if (error.message.includes('worker') || error.message.includes('WorkerMessageHandler') || error.message.includes('GlobalWorkerOptions')) {
+        throw new PDFParseError('PDF parsing failed: Worker initialization error in serverless environment', 'INVALID_PDF');
+      }
       if (error.message.includes('Invalid PDF') || error.message.includes('corrupt') || error.message.includes('Invalid')) {
         throw new PDFParseError('Invalid or corrupted PDF file', 'INVALID_PDF');
       }

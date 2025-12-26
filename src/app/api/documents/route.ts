@@ -45,8 +45,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error uploading document:', error);
+    
+    // Handle specific error for existing document
+    if (error instanceof Error && error.message.includes('Conversation already has a document')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }

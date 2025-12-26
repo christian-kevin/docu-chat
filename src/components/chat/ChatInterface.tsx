@@ -20,6 +20,7 @@ export function ChatInterface() {
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMessageCountRef = useRef<number>(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,6 +60,94 @@ export function ChatInterface() {
 
   useEffect(() => {
     fetchMessages();
+  }, [conversationId]);
+
+  // Poll for new messages until success/fail message appears
+  useEffect(() => {
+    if (!conversationId) {
+      lastMessageCountRef.current = 0;
+      return;
+    }
+
+    // Initialize message count when conversation changes
+    lastMessageCountRef.current = messages.length;
+
+    let pollingActive = true;
+    let hasSeenCompletionMessage = false;
+
+    const checkForNewMessages = async () => {
+      if (!pollingActive) return;
+
+      try {
+        // Check if there are any processing documents
+        const docsResponse = await fetch(`/api/documents?conversation_id=${conversationId}`);
+        if (!docsResponse.ok) {
+          pollingActive = false;
+          return;
+        }
+
+        const docsData = await docsResponse.json();
+        const hasProcessingDocs = docsData.documents?.some(
+          (doc: any) => doc.status === 'processing' || doc.status === 'uploading'
+        );
+
+        // Always fetch messages to check for new ones
+        const messagesResponse = await fetch(`/api/conversations/${conversationId}`);
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json();
+          const fetchedMessages: Message[] = messagesData.messages.map((msg: any) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.created_at),
+          }));
+
+          const currentMessageCount = fetchedMessages.length;
+          const lastCount = lastMessageCountRef.current;
+          
+          // Check if we have a completion message
+          const completionMessage = fetchedMessages.find(
+            (msg) => msg.role === 'system' && 
+              (msg.content.includes('processing completed') || msg.content.includes('processing failed'))
+          );
+
+          if (completionMessage) {
+            hasSeenCompletionMessage = true;
+          }
+
+          // If we have new messages, update the UI
+          if (currentMessageCount !== lastCount) {
+            setMessages(fetchedMessages);
+            lastMessageCountRef.current = currentMessageCount;
+          }
+
+          // Stop polling if:
+          // 1. No processing docs AND we've seen the completion message, OR
+          // 2. No processing docs AND no new messages for a while (safety timeout)
+          if (!hasProcessingDocs && hasSeenCompletionMessage) {
+            pollingActive = false;
+            return;
+          }
+
+          // Continue polling if there are still processing docs
+          if (!hasProcessingDocs && !hasSeenCompletionMessage) {
+            // Keep polling a bit longer to catch the completion message
+            // This handles the race condition where processing finishes but message isn't created yet
+          }
+        }
+      } catch (error) {
+        console.error('Error polling for messages:', error);
+      }
+    };
+
+    // Start polling immediately, then every 2 seconds
+    checkForNewMessages();
+    const interval = setInterval(checkForNewMessages, 2000);
+
+    return () => {
+      pollingActive = false;
+      clearInterval(interval);
+    };
   }, [conversationId]);
 
   const handleStartChat = async () => {
@@ -116,7 +205,11 @@ export function ChatInterface() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
+        const errorMessage = error.error || 'Upload failed';
+        
+        // Show user-friendly error message
+        alert(errorMessage);
+        return;
       }
 
       const data = await response.json();
@@ -240,7 +333,12 @@ export function ChatInterface() {
                 messages={messages}
                 uploadedDocuments={uploadedDocuments}
                 conversationId={conversationId}
-                onDocumentStatusChange={fetchMessages}
+                onDocumentStatusChange={() => {
+                  // Add a small delay to ensure the completion message is created
+                  setTimeout(() => {
+                    fetchMessages();
+                  }, 500);
+                }}
                 isLoading={isLoadingMessages}
               />
               <div ref={messagesEndRef} />
