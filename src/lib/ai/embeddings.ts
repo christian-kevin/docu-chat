@@ -1,4 +1,14 @@
-import { pipeline } from '@xenova/transformers';
+import { pipeline, env } from '@xenova/transformers';
+
+// Configure cache directory for serverless environments (Vercel, AWS Lambda, etc.)
+// The file cache is for ML model weights (not semantic cache which goes to Supabase)
+// Use /tmp which is writable in serverless environments
+if (typeof process !== 'undefined') {
+  // Set cache to /tmp for all serverless environments
+  env.cacheDir = '/tmp/.cache';
+  // Also set local filesystem cache to false to avoid issues
+  env.allowLocalModels = false;
+}
 
 let extractor: any;
 

@@ -1,6 +1,3 @@
-export const runtime = 'nodejs';
-export const maxDuration = 10;
-
 import { NextResponse } from 'next/server';
 import type { CreateConversationResponse, ConversationListResponse } from '@/types/api';
 import { createConversation, getConversations } from '@/lib/database/queries/conversation';

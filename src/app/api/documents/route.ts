@@ -1,6 +1,3 @@
-export const runtime = 'nodejs';
-export const maxDuration = 10;
-
 import { NextRequest, NextResponse } from 'next/server';
 import type { UploadDocumentResponse, DocumentListResponse } from '@/types/api';
 import { validateDocument } from '@/lib/documents/validation';

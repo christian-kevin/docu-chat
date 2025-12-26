@@ -1,6 +1,3 @@
-export const runtime = 'nodejs';
-export const maxDuration = 10;
-
 import { NextRequest, NextResponse } from 'next/server';
 import { markDocumentFailed } from '@/lib/database/queries/document';
 

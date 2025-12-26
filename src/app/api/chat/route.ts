@@ -1,6 +1,3 @@
-export const runtime = 'nodejs';
-export const maxDuration = 10;
-
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChatRequest, ChatResponse, ChatHistoryResponse } from '@/types/api';
 import { getConversationById } from '@/lib/database/queries/conversation';
@@ -20,6 +17,7 @@ function hashQuery(query: string, documentIds: string[], model: string, temperat
 // POST /api/chat
 // Processes a chat message and returns AI response with sources
 export async function POST(request: NextRequest) {
+  console.error("🔥 CHAT ROUTE HIT DEV + DEPLOY");
   try {
     const body: ChatRequest = await request.json();
     const { conversation_id, message } = body;
