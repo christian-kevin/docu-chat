@@ -1,7 +1,7 @@
 if (typeof window === 'undefined') {
   if (typeof globalThis.DOMMatrix === 'undefined') {
     globalThis.DOMMatrix = class DOMMatrix {
-      constructor(init?: string | number[]) {
+      constructor() {
       }
       static fromMatrix() {
         return new DOMMatrix();
