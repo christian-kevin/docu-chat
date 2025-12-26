@@ -1,6 +1,3 @@
-// Import DOMMatrix polyfill first to ensure it's available before pdfjs-dist
-import '@/lib/ingestion/dom-matrix-polyfill';
-
 import { parseCSV, CSVParseError } from '@/lib/ingestion/csv';
 import { parsePDF, PDFParseError } from '@/lib/ingestion/pdf';
 
