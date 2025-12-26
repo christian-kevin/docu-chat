@@ -1,5 +1,4 @@
-// @ts-ignore - pdf-parse doesn't have proper TypeScript types
-const pdfParse = require('pdf-parse');
+import { extractText, getDocumentProxy } from 'unpdf';
 
 export interface ParsedPDFPage {
   pageNumber: number;
@@ -24,28 +23,29 @@ export class PDFParseError extends Error {
 export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedPDF> {
   try {
     const buffer = pdfBuffer instanceof ArrayBuffer ? Buffer.from(pdfBuffer) : pdfBuffer;
-    const data = await pdfParse(buffer);
+    const uint8Array = new Uint8Array(buffer);
+    
+    const pdf = await getDocumentProxy(uint8Array);
+    const { text } = await extractText(pdf, { mergePages: false });
 
-    const rawText = data.text || '';
-    if (!rawText.trim()) {
+    if (!text || text.length === 0) {
       throw new PDFParseError('PDF contains no extractable text', 'EMPTY_TEXT');
     }
 
-    const pages = rawText
-      .split(/\f/g)
-      .map((pageText: string, index: number) => ({
-        pageNumber: index + 1,
+    const parsedPages = text
+      .map((pageText: string, i: number) => ({
+        pageNumber: i + 1,
         text: pageText.replace(/\s+/g, ' ').trim(),
       }))
       .filter((page: { pageNumber: number; text: string }) => page.text.length > 0);
 
-    if (pages.length === 0) {
+    if (parsedPages.length === 0) {
       throw new PDFParseError('PDF contains no extractable text', 'EMPTY_TEXT');
     }
 
     return {
       type: 'pdf',
-      pages,
+      pages: parsedPages,
     };
   } catch (error) {
     if (error instanceof PDFParseError) {

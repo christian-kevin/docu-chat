@@ -29,12 +29,11 @@
     "next": "^15.1.6",
     "openai": "^4.104.0",
     "p-limit": "^7.2.0",
-    "pdf-parse": "^2.4.5",
-    "pdfjs-dist": "^5.4.449",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sentence-splitter": "^5.0.0",
     "tailwind-merge": "^3.4.0",
+    "unpdf": "^1.4.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
