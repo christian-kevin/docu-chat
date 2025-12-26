@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['pdfjs-dist'],
   images: {
     domains: ['localhost'],
   },
