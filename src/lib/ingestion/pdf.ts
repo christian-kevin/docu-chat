@@ -3,6 +3,20 @@ import './dom-matrix-polyfill';
 
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
+// Disable workers for serverless environments (Vercel, AWS Lambda, etc.)
+// Workers don't work in serverless environments and cause initialization errors
+if (typeof window === 'undefined') {
+  try {
+    // @ts-ignore - GlobalWorkerOptions exists at runtime after pdfjs-dist import
+    if (typeof globalThis.GlobalWorkerOptions !== 'undefined') {
+      // @ts-ignore
+      globalThis.GlobalWorkerOptions.workerSrc = '';
+    }
+  } catch (e) {
+    // Silently fail if GlobalWorkerOptions is not available
+  }
+}
+
 export interface ParsedPDFPage {
   pageNumber: number;
   text: string;
@@ -42,11 +56,29 @@ export async function parsePDF(pdfBuffer: Buffer | ArrayBuffer): Promise<ParsedP
     }
   }
 
+  // Ensure workers are disabled for serverless (defensive check)
+  if (typeof window === 'undefined') {
+    try {
+      // @ts-ignore - GlobalWorkerOptions exists at runtime after pdfjs-dist import
+      if (typeof globalThis.GlobalWorkerOptions !== 'undefined') {
+        // @ts-ignore
+        globalThis.GlobalWorkerOptions.workerSrc = '';
+      }
+    } catch (e) {
+      // Silently fail if GlobalWorkerOptions is not available
+    }
+  }
+
   try {
     const buffer = pdfBuffer instanceof ArrayBuffer ? Buffer.from(pdfBuffer) : pdfBuffer;
     const uint8Array = new Uint8Array(buffer);
 
-    const loadingTask = getDocument({ data: uint8Array });
+    // Workers are disabled via GlobalWorkerOptions in dom-matrix-polyfill.ts
+    // This ensures pdfjs-dist runs in main thread (required for serverless)
+    const loadingTask = getDocument({ 
+      data: uint8Array,
+      verbosity: 0, // Suppress warnings
+    });
     
     loadingTask.onPassword = () => {
       throw new PDFParseError('PDF is encrypted and cannot be parsed', 'ENCRYPTED_PDF');

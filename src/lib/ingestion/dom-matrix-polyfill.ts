@@ -1,5 +1,6 @@
-// DOMMatrix polyfill for serverless environments (Vercel, AWS Lambda, etc.)
+// DOMMatrix polyfill and worker configuration for serverless environments (Vercel, AWS Lambda, etc.)
 // pdfjs-dist requires DOMMatrix which is not available in Node.js/serverless environments
+// Workers also don't work in serverless environments
 // This must be imported before any pdfjs-dist imports
 
 if (typeof window === 'undefined') {
@@ -24,5 +25,6 @@ if (typeof window === 'undefined') {
   if (typeof self !== 'undefined' && typeof self.DOMMatrix === 'undefined') {
     self.DOMMatrix = globalThis.DOMMatrix;
   }
+
 }
 
