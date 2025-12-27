@@ -100,7 +100,32 @@ If metadata is provided (e.g., page number, row index), incorporate it naturally
       const semanticText = response.choices[0]?.message?.content?.trim();
 
       if (!semanticText) {
-        throw new Error('Semantic enrichment failed: empty output');
+        // Log the full response for debugging
+        console.error('[semanticize] Empty response from LLM:', {
+          attempt: attempt + 1,
+          responseId: response.id,
+          model: response.model,
+          choices: response.choices?.length || 0,
+          finishReason: response.choices[0]?.finish_reason,
+          rawContent: response.choices[0]?.message?.content,
+          contentLength: content.length,
+          contentPreview: content.substring(0, 100),
+        });
+        
+        // Retry on empty response, or fallback to original content on final attempt (PDF only)
+        lastError = new Error('Semantic enrichment failed: empty output from LLM');
+        if (attempt < MAX_RETRIES) {
+          continue;
+        } else {
+          // Final attempt failed - fallback to original content only for PDFs
+          if (documentType === 'pdf') {
+            console.warn('[semanticize] All retries exhausted, falling back to original content (PDF)');
+            return content;
+          } else {
+            // For CSV, throw error instead of using original content
+            throw new Error('Semantic enrichment failed: empty output from LLM (CSV requires semanticization)');
+          }
+        }
       }
 
       semanticCache.set(cacheKey, semanticText);
@@ -117,6 +142,26 @@ If metadata is provided (e.g., page number, row index), incorporate it naturally
           continue;
         }
       } else {
+        // Log other errors for debugging
+        console.error('[semanticize] Error during semanticization:', {
+          attempt: attempt + 1,
+          error: error instanceof Error ? error.message : String(error),
+          errorName: error instanceof Error ? error.name : 'Unknown',
+          contentLength: content.length,
+          contentPreview: content.substring(0, 100),
+        });
+        
+        // On final attempt, fallback to original content for non-critical errors (PDF only)
+        if (attempt >= MAX_RETRIES && error instanceof Error) {
+          if (documentType === 'pdf') {
+            console.warn('[semanticize] Final attempt failed, falling back to original content (PDF)');
+            return content;
+          } else {
+            // For CSV, throw error instead of using original content
+            throw new Error(`Semantic enrichment failed for CSV: ${error.message}`);
+          }
+        }
+        
         throw error;
       }
     }
