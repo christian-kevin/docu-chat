@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
     const documentIds = readyDocuments.map(doc => doc.id);
     const model = 'mistralai/mistral-7b-instruct';
     const temperature = 0;
-    const matchCount = 10;
-    const matchThreshold = 0.5;
+    const matchCount = 15;
+    const matchThreshold = 0.3;
 
     const queryHash = hashQuery(message, documentIds, model, temperature, matchCount);
     const cachedResponse = await getSemanticCache(queryHash);

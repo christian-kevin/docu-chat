@@ -14,7 +14,7 @@ export async function searchDocumentChunks(params: {
   matchCount?: number;
   includeSimilarity?: boolean;
 }): Promise<VectorSearchResult[]> {
-  const { queryEmbedding, conversationId, matchThreshold = 0.5, matchCount = 15 } = params;
+  const { queryEmbedding, conversationId, matchThreshold = 0.3, matchCount = 15 } = params;
 
   const { data, error } = await getSupabaseAdmin().rpc('match_document_chunks', {
     query_embedding: queryEmbedding,
